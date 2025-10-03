@@ -1,11 +1,11 @@
 %% Copyright (C)
 %% @private
 %% @Author Alejandro Russo
--file("lib/grm.yrl", 0).
+-file("grm.yrl", 0).
 -module(grm).
--file("lib/grm.erl", 6).
+-file("grm.erl", 6).
 -export([parse/1, parse_and_scan/1, format_error/1]).
--file("lib/grm.yrl", 43).
+-file("grm.yrl", 43).
 
 
 ff({_,_,Content}) -> Content.
@@ -200,7 +200,7 @@ yecctoken2string1(Other) ->
 
 
 
--file("lib/grm.erl", 203).
+-file("grm.erl", 203).
 
 -dialyzer({nowarn_function, yeccpars2/7}).
 -compile({nowarn_unused_function,  yeccpars2/7}).
@@ -521,7 +521,7 @@ yeccgoto_unit(30=_S, Cat, Ss, Stack, T, Ts, Tzr) ->
 -compile({inline,yeccpars2_3_/1}).
 -dialyzer({nowarn_function, yeccpars2_3_/1}).
 -compile({nowarn_unused_function,  yeccpars2_3_/1}).
--file("lib/grm.yrl", 13).
+-file("grm.yrl", 13).
 yeccpars2_3_(__Stack0) ->
  [___1 | __Stack] = __Stack0,
  [begin
@@ -531,7 +531,7 @@ yeccpars2_3_(__Stack0) ->
 -compile({inline,yeccpars2_5_/1}).
 -dialyzer({nowarn_function, yeccpars2_5_/1}).
 -compile({nowarn_unused_function,  yeccpars2_5_/1}).
--file("lib/grm.yrl", 11).
+-file("grm.yrl", 11).
 yeccpars2_5_(__Stack0) ->
  [___1 | __Stack] = __Stack0,
  [begin
@@ -541,7 +541,7 @@ yeccpars2_5_(__Stack0) ->
 -compile({inline,yeccpars2_8_/1}).
 -dialyzer({nowarn_function, yeccpars2_8_/1}).
 -compile({nowarn_unused_function,  yeccpars2_8_/1}).
--file("lib/grm.yrl", 26).
+-file("grm.yrl", 26).
 yeccpars2_8_(__Stack0) ->
  [___1 | __Stack] = __Stack0,
  [begin
@@ -551,7 +551,7 @@ yeccpars2_8_(__Stack0) ->
 -compile({inline,yeccpars2_9_/1}).
 -dialyzer({nowarn_function, yeccpars2_9_/1}).
 -compile({nowarn_unused_function,  yeccpars2_9_/1}).
--file("lib/grm.yrl", 28).
+-file("grm.yrl", 28).
 yeccpars2_9_(__Stack0) ->
  [___1 | __Stack] = __Stack0,
  [begin
@@ -561,7 +561,7 @@ yeccpars2_9_(__Stack0) ->
 -compile({inline,yeccpars2_10_/1}).
 -dialyzer({nowarn_function, yeccpars2_10_/1}).
 -compile({nowarn_unused_function,  yeccpars2_10_/1}).
--file("lib/grm.yrl", 32).
+-file("grm.yrl", 32).
 yeccpars2_10_(__Stack0) ->
  [___2,___1 | __Stack] = __Stack0,
  [begin
@@ -571,7 +571,7 @@ yeccpars2_10_(__Stack0) ->
 -compile({inline,yeccpars2_11_/1}).
 -dialyzer({nowarn_function, yeccpars2_11_/1}).
 -compile({nowarn_unused_function,  yeccpars2_11_/1}).
--file("lib/grm.yrl", 30).
+-file("grm.yrl", 30).
 yeccpars2_11_(__Stack0) ->
  [___2,___1 | __Stack] = __Stack0,
  [begin
@@ -581,7 +581,7 @@ yeccpars2_11_(__Stack0) ->
 -compile({inline,yeccpars2_12_/1}).
 -dialyzer({nowarn_function, yeccpars2_12_/1}).
 -compile({nowarn_unused_function,  yeccpars2_12_/1}).
--file("lib/grm.yrl", 24).
+-file("grm.yrl", 24).
 yeccpars2_12_(__Stack0) ->
  [___2,___1 | __Stack] = __Stack0,
  [begin
@@ -591,7 +591,7 @@ yeccpars2_12_(__Stack0) ->
 -compile({inline,yeccpars2_13_/1}).
 -dialyzer({nowarn_function, yeccpars2_13_/1}).
 -compile({nowarn_unused_function,  yeccpars2_13_/1}).
--file("lib/grm.yrl", 22).
+-file("grm.yrl", 22).
 yeccpars2_13_(__Stack0) ->
  [___2,___1 | __Stack] = __Stack0,
  [begin
@@ -601,7 +601,7 @@ yeccpars2_13_(__Stack0) ->
 -compile({inline,yeccpars2_14_/1}).
 -dialyzer({nowarn_function, yeccpars2_14_/1}).
 -compile({nowarn_unused_function,  yeccpars2_14_/1}).
--file("lib/grm.yrl", 15).
+-file("grm.yrl", 15).
 yeccpars2_14_(__Stack0) ->
  [___2,___1 | __Stack] = __Stack0,
  [begin
@@ -611,7 +611,7 @@ yeccpars2_14_(__Stack0) ->
 -compile({inline,yeccpars2_22_/1}).
 -dialyzer({nowarn_function, yeccpars2_22_/1}).
 -compile({nowarn_unused_function,  yeccpars2_22_/1}).
--file("lib/grm.yrl", 36).
+-file("grm.yrl", 36).
 yeccpars2_22_(__Stack0) ->
  [___1 | __Stack] = __Stack0,
  [begin
@@ -621,7 +621,7 @@ yeccpars2_22_(__Stack0) ->
 -compile({inline,yeccpars2_23_/1}).
 -dialyzer({nowarn_function, yeccpars2_23_/1}).
 -compile({nowarn_unused_function,  yeccpars2_23_/1}).
--file("lib/grm.yrl", 37).
+-file("grm.yrl", 37).
 yeccpars2_23_(__Stack0) ->
  [___2,___1 | __Stack] = __Stack0,
  [begin
@@ -631,7 +631,7 @@ yeccpars2_23_(__Stack0) ->
 -compile({inline,yeccpars2_24_/1}).
 -dialyzer({nowarn_function, yeccpars2_24_/1}).
 -compile({nowarn_unused_function,  yeccpars2_24_/1}).
--file("lib/grm.yrl", 38).
+-file("grm.yrl", 38).
 yeccpars2_24_(__Stack0) ->
  [___3,___2,___1 | __Stack] = __Stack0,
  [begin
@@ -641,7 +641,7 @@ yeccpars2_24_(__Stack0) ->
 -compile({inline,yeccpars2_25_/1}).
 -dialyzer({nowarn_function, yeccpars2_25_/1}).
 -compile({nowarn_unused_function,  yeccpars2_25_/1}).
--file("lib/grm.yrl", 19).
+-file("grm.yrl", 19).
 yeccpars2_25_(__Stack0) ->
  [___8,___7,___6,___5,___4,___3,___2,___1 | __Stack] = __Stack0,
  [begin
@@ -652,7 +652,7 @@ yeccpars2_25_(__Stack0) ->
 -compile({inline,yeccpars2_31_/1}).
 -dialyzer({nowarn_function, yeccpars2_31_/1}).
 -compile({nowarn_unused_function,  yeccpars2_31_/1}).
--file("lib/grm.yrl", 34).
+-file("grm.yrl", 34).
 yeccpars2_31_(__Stack0) ->
  [___7,___6,___5,___4,___3,___2,___1 | __Stack] = __Stack0,
  [begin
@@ -660,4 +660,4 @@ yeccpars2_31_(__Stack0) ->
   end | __Stack].
 
 
--file("lib/grm.yrl", 47).
+-file("grm.yrl", 47).

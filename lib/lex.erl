@@ -45,7 +45,7 @@
 -export([format_error/1]).
 
 %% User code. This is placed here to allow extra attributes.
--file("lib/lex.xrl", 86).
+-file("./lex.xrl", 86).
 
 -file("c:/Program Files/Erlang OTP/lib/parsetools-2.7/include/leexinc.hrl", 47).
 
@@ -404,7 +404,7 @@ tab_size() -> 8.
 %% return signal either an unrecognised character or end of current
 %% input.
 
--file("lib/lex.erl", 372).
+-file("./lex.erl", 372).
 yystate() -> 51.
 
 yystate(54, [118|Ics], Line, Col, Tlen, Action, Alen) ->
@@ -706,92 +706,92 @@ yyaction(17, TokenLen, YYtcs, TokenLine, _) ->
 yyaction(_, _, _, _, _) -> error.
 
 -compile({inline,yyaction_0/2}).
--file("lib/lex.xrl", 30).
+-file("./lex.xrl", 30).
 yyaction_0(TokenChars, TokenLine) ->
      { token, { server_name, TokenLine, TokenChars } } .
 
 -compile({inline,yyaction_1/2}).
--file("lib/lex.xrl", 33).
+-file("./lex.xrl", 33).
 yyaction_1(TokenChars, TokenLine) ->
      { token, { channel, TokenLine, TokenChars } } .
 
 -compile({inline,yyaction_2/2}).
--file("lib/lex.xrl", 36).
+-file("./lex.xrl", 36).
 yyaction_2(TokenChars, TokenLine) ->
      { token, { nick_name, TokenLine, TokenChars } } .
 
 -compile({inline,yyaction_3/2}).
--file("lib/lex.xrl", 39).
+-file("./lex.xrl", 39).
 yyaction_3(TokenChars, TokenLine) ->
      { token, { '/connect', TokenLine, TokenChars } } .
 
 -compile({inline,yyaction_4/2}).
--file("lib/lex.xrl", 42).
+-file("./lex.xrl", 42).
 yyaction_4(TokenChars, TokenLine) ->
      { token, { '/join', TokenLine, TokenChars } } .
 
 -compile({inline,yyaction_5/2}).
--file("lib/lex.xrl", 45).
+-file("./lex.xrl", 45).
 yyaction_5(TokenChars, TokenLine) ->
      { token, { '/whoami', TokenLine, TokenChars } } .
 
 -compile({inline,yyaction_6/2}).
--file("lib/lex.xrl", 48).
+-file("./lex.xrl", 48).
 yyaction_6(TokenChars, TokenLine) ->
      { token, { '/nick', TokenLine, TokenChars } } .
 
 -compile({inline,yyaction_7/2}).
--file("lib/lex.xrl", 51).
+-file("./lex.xrl", 51).
 yyaction_7(TokenChars, TokenLine) ->
      { token, { '/ping', TokenLine, TokenChars } } .
 
 -compile({inline,yyaction_8/2}).
--file("lib/lex.xrl", 54).
+-file("./lex.xrl", 54).
 yyaction_8(TokenChars, TokenLine) ->
      { token, { '/disconnect', TokenLine, TokenChars } } .
 
 -compile({inline,yyaction_9/2}).
--file("lib/lex.xrl", 57).
+-file("./lex.xrl", 57).
 yyaction_9(TokenChars, TokenLine) ->
      { token, { '/leave', TokenLine, TokenChars } } .
 
 -compile({inline,yyaction_10/2}).
--file("lib/lex.xrl", 60).
+-file("./lex.xrl", 60).
 yyaction_10(TokenChars, TokenLine) ->
      { token, { '/quit', TokenLine, TokenChars } } .
 
 -compile({inline,yyaction_11/0}).
--file("lib/lex.xrl", 62).
+-file("./lex.xrl", 62).
 yyaction_11() ->
      skip_token .
 
 -compile({inline,yyaction_12/2}).
--file("lib/lex.xrl", 65).
+-file("./lex.xrl", 65).
 yyaction_12(TokenChars, TokenLine) ->
      { token, { digit, TokenLine, TokenChars } } .
 
 -compile({inline,yyaction_13/2}).
--file("lib/lex.xrl", 68).
+-file("./lex.xrl", 68).
 yyaction_13(TokenChars, TokenLine) ->
      { token, { dot, TokenLine, TokenChars } } .
 
 -compile({inline,yyaction_14/2}).
--file("lib/lex.xrl", 71).
+-file("./lex.xrl", 71).
 yyaction_14(TokenChars, TokenLine) ->
      { token, { '{', TokenLine, TokenChars } } .
 
 -compile({inline,yyaction_15/2}).
--file("lib/lex.xrl", 74).
+-file("./lex.xrl", 74).
 yyaction_15(TokenChars, TokenLine) ->
      { token, { '}', TokenLine, TokenChars } } .
 
 -compile({inline,yyaction_16/2}).
--file("lib/lex.xrl", 77).
+-file("./lex.xrl", 77).
 yyaction_16(TokenChars, TokenLine) ->
      { token, { ',', TokenLine, TokenChars } } .
 
 -compile({inline,yyaction_17/2}).
--file("lib/lex.xrl", 80).
+-file("./lex.xrl", 80).
 yyaction_17(TokenChars, TokenLine) ->
      { token, { '@', TokenLine, TokenChars } } .
 -file("c:/Program Files/Erlang OTP/lib/parsetools-2.7/include/leexinc.hrl", 377).

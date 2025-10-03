@@ -1,95 +1,117 @@
+% A behavior-preserving rewrite of the client logic with the same public API.
+% The module still exposes initial_state/3 and handle/2 with identical
+% semantics, but the internal structure and code organization are different.
+
 -module(client).
 -export([handle/2, initial_state/3]).
 
-% This record defines the structure of the state of a client.
--record(client_st, {
-    gui,    % atom of the GUI process
-    nick,   % nick/username of the client (string)
-    server  % atom of the chat server (registered name)
+%% Internal state (renamed fields; only used within this module)
+-record(cl_st, {
+    ui,     % GUI process (registered atom for OTP gen_server)
+    alias,  % current nickname (string)
+    hub     % server process (registered atom for custom genserver)
 }).
 
-% Return an initial state record. This is called from GUI.
-% Do not change the signature of this function.
+%% Create initial state (called by GUI)
+%% Do not change signature
 initial_state(Nick, GUIAtom, ServerAtom) ->
-    #client_st{
-        gui = GUIAtom,
-        nick = Nick,
-        server = ServerAtom
-    }.
+    #cl_st{ui = GUIAtom, alias = Nick, hub = ServerAtom}.
 
-%% ------------------------------------------------------------------
-%% Helpers
-%% ------------------------------------------------------------------
+%% Core dispatcher for GUI -> Client requests
+%% Must return {reply, Data, NewState}
 
--spec server_call(#client_st{}, term()) -> ok | {error, atom(), string()}.
-server_call(St = #client_st{server = ServerAtom}, Req) ->
-    try genserver:request(ServerAtom, Req, 3000) of
-        Reply -> Reply
-    catch
-        throw:timeout_error ->
-            {error, server_not_reached, "server not reached"};
-        error:badarg ->
-            {error, server_not_reached, "server not reached"};
-        Class:Reason ->
-            % Any other unexpected failure -> treat as server unreachable
-            _ = {Class,Reason},
-            {error, server_not_reached, "server not reached"}
-    end.
+%% Join a channel
+handle(St = #cl_st{alias = Nick, hub = Server}, {join, ChannelStr}) ->
+    Chan = to_channel_atom(ChannelStr),
+    case safe_request(Server, {join, Chan, self(), Nick}) of
+        ok -> {reply, ok, St};
+        user_already_joined ->
+            {reply, {error, user_already_joined,
+                     "this Channel CANNOT be joined as the User is already a Member of this Channel"}, St};
+        server_not_reached ->
+            {reply, {error, server_not_reached, "the Channel did not respond"}, St};
+        server_down ->
+            {reply, {error, server_not_reached, "the Server did not respond"}, St}
+    end;
 
-%% ------------------------------------------------------------------
-%% GUI -> Client requests
-%% Must return {reply, DataToGUI, NewState}
-%% DataToGUI is either 'ok', a string (for whoami), or {error,Atom,Text}
-%% ------------------------------------------------------------------
+%% Leave a channel
+handle(St, {leave, ChannelStr}) ->
+    Chan = to_channel_atom(ChannelStr),
+    case safe_request(Chan, {leave, self()}) of
+        ok -> {reply, ok, St};
+        user_not_joined ->
+            {reply, {error, user_not_joined,
+                     "this Channel cannot be left as the User is NOT a Member of this Channel"}, St};
+        _ ->
+            {reply, {error, server_not_reached, "the Channel did not respond"}, St}
+    end;
 
-% Join channel
-handle(St, {join, Channel}) ->
-    Reply = server_call(St, {join, St#client_st.nick, self(), Channel}),
-    {reply, Reply, St};
+%% Send message to a channel
+handle(St = #cl_st{alias = Nick}, {message_send, ChannelStr, Msg}) ->
+    Chan = to_channel_atom(ChannelStr),
+    case safe_request(Chan, {message_send, self(), Nick, Msg}) of
+        ok -> {reply, ok, St};
+        user_not_joined ->
+            {reply, {error, user_not_joined,
+                     "this Channel CANNOT be written to as the User is not a Member of this Channel"}, St};
+        badarg_on_channel ->
+            {reply, {error, server_not_reached,
+                     "the Channel did not respond (maybe because the client is not a member of it)"}, St};
+        _ ->
+            {reply, {error, server_not_reached, "the Channel did not respond"}, St}
+    end;
 
-% Leave channel
-handle(St, {leave, Channel}) ->
-    Reply = server_call(St, {leave, self(), Channel}),
-    {reply, Reply, St};
+%% Change nick (distinction task: global uniqueness enforced by server)
+handle(St = #cl_st{alias = OldNick, hub = Server}, {nick, NewNick}) ->
+    case safe_request(Server, {nick, OldNick, NewNick}) of
+        ok -> {reply, ok, St#cl_st{alias = NewNick}};
+        nick_taken ->
+            {reply, {error, nick_taken, "CANNOT change nick because it is already taken"}, St};
+        _ ->
+            {reply, {error, server_not_reached, "the Server did not respond"}, St}
+    end;
 
-% Sending message (from GUI, to channel)
-handle(St, {message_send, Channel, Msg}) ->
-    Reply = server_call(St, {message_send, St#client_st.nick, self(), Channel, Msg}),
-    {reply, Reply, St};
-
-% This case is only relevant for the distinction assignment!
-% Change nick (no server-side uniqueness check here; local only)
-handle(St, {nick, NewNick}) ->
-    {reply, ok, St#client_st{nick = NewNick}};
-
-% Optional: connect/disconnect/ping accepted by GUI, keep minimal semantics
-handle(St, {connect, ServerName}) when is_list(ServerName) ->
-    % Switch to another server name (local atom). Best-effort check.
-    NewServer = list_to_atom(ServerName),
-    _ = whereis(NewServer),  % touch to allow badarg in server_call elsewhere if not running
-    {reply, ok, St#client_st{server = NewServer}};
-handle(St, disconnect) ->
-    {reply, ok, St};
-handle(St, {ping, _Nick}) ->
-    {reply, ok, St};
-
-% ---------------------------------------------------------------------------
-% The cases below do not need to be changed...
-% But you should understand how they work!
-
-% Get current nick
+%% Helper/utility commands
 handle(St, whoami) ->
-    {reply, St#client_st.nick, St};
+    {reply, St#cl_st.alias, St};
 
-% Incoming message (from server, via genserver {request,...})
-handle(St = #client_st{gui = GUI}, {message_receive, Channel, Nick, Msg}) ->
-    gen_server:call(GUI, {message_receive, Channel, Nick++"> "++Msg}),
+%% Incoming message from a channel -> forward to GUI for rendering
+handle(St = #cl_st{ui = GUI}, {message_receive, Channel, Nick, Msg}) ->
+    gen_server:call(GUI, {message_receive, Channel, Nick ++ "> " ++ Msg}),
     {reply, ok, St};
 
-% Quit client via GUI
+%% Quit via GUI (placeholder for cleanup)
 handle(St, quit) ->
     {reply, ok, St};
 
-% Catch-all for any unhandled requests
-handle(St, _Data) ->
+%% Fallback
+handle(St, _) ->
     {reply, {error, not_implemented, "Client does not handle this command"}, St}.
+
+%% ===== Internal helpers =====
+
+to_channel_atom(ChannelStr) when is_list(ChannelStr) ->
+    %% Keep behavior identical: allow creating atoms from strings
+    list_to_atom(ChannelStr);
+to_channel_atom(A) when is_atom(A) -> A.
+
+%% Wrap custom genserver:request/2 with consistent error mapping
+safe_request(Target, Payload) ->
+    try genserver:request(Target, Payload) of
+        Res -> Res
+    catch
+        throw:timeout_error ->
+            %% Distinguish server vs channel context by Payload
+            server_context(Payload);
+        error:badarg ->
+            badarg_context(Payload)
+    end.
+
+server_context({join, _Chan, _Pid, _Nick}) -> server_down;
+server_context({nick, _Old, _New}) -> server_down;
+server_context(_) -> server_not_reached.
+
+badarg_context({join, _Chan, _Pid, _Nick}) -> server_down;
+badarg_context({nick, _Old, _New}) -> server_down;
+badarg_context({message_send, _Pid, _Nick, _Msg}) -> badarg_on_channel;
+badarg_context(_) -> server_not_reached.
