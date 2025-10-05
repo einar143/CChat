@@ -1,117 +1,129 @@
-% Behavior-equivalent chat server rewritten with different internal design.
-% Public API remains: start/1, stop/1. Message contracts are preserved.
-
+%%--------------------------------------------------------------------
+%% CCHAT server 
+%%--------------------------------------------------------------------
 -module(server).
 -export([start/1, stop/1]).
 
-%% ===== Server (coordinator) =====
--record(hub_state, {
-    rooms = [],   % list of channel atoms
-    roster = []   % list of nick strings (global uniqueness)
+-record(hstate, {
+    rooms  = #{} ,   %% #{ChannelAtom => Pid}
+    roster = #{}     %% #{NickString => true}  (global uniqueness)
 }).
 
-start(ServerAtom) ->
-    genserver:start(ServerAtom, new_hub_state(), fun hub_handle/2).
+%%========================
+%% Public API
+%%========================
+start(ServerName) ->
+    genserver:start(ServerName, #hstate{}, fun hub_handle/2).
 
-stop(ServerAtom) ->
-    %% Attempt graceful stop of all channels, then stop the hub itself.
-    catch_stop_all(ServerAtom),
-    genserver:stop(ServerAtom).
+stop(ServerName) ->
+    %% best-effort graceful: ask hub to stop all rooms, then stop hub
+    _ = try genserver:request(ServerName, stop_all)
+        catch _:_ -> server_not_reached
+        end,
+    genserver:stop(ServerName).
 
-new_hub_state() -> #hub_state{}.
+%%========================
+%% Hub (coordinator)
+%%========================
+hub_handle(HS = #hstate{rooms = Rooms, roster = R}, {join, Room, ClientPid, Nick}) ->
+    HS1 = ensure_nick(HS, Nick),
+    case maps:get(Room, Rooms, undefined) of
+        undefined ->
+            Pid = start_room(Room, ClientPid),
+            {reply, ok, HS1#hstate{rooms = Rooms#{Room => Pid}}};
+        RoomPid ->
+            case req_room(RoomPid, {join, ClientPid}) of
+                ok                 -> {reply, ok, HS1};
+                user_already_joined-> {reply, user_already_joined, HS1};
+                server_not_reached -> {reply, server_not_reached, HS1}
+            end
+    end;
 
-%% Server message handler
-hub_handle(St = #hub_state{rooms = Rooms, roster = Names}, {join, Room, Pid, Nick}) ->
-    %% Ensure nickname exists in roster (idempotent add)
-    St1 = ensure_nick(St, Nick),
-    case lists:member(Room, Rooms) of
-        true ->
-            case channel_join(Room, Pid) of
-                ok -> {reply, ok, St1};
-                user_already_joined -> {reply, user_already_joined, St1};
-                server_not_reached -> {reply, server_not_reached, St1}
-            end;
+%% Distinction: enforce global nick uniqueness
+hub_handle(HS = #hstate{roster = R}, {nick, Old, New}) ->
+    case maps:is_key(New, R) of
+        true  -> {reply, nick_taken, HS};
         false ->
-            start_room(Room, Pid),
-            {reply, ok, St1#hub_state{rooms = [Room | Rooms]}}
+            R1 = maps:remove(Old, R),
+            {reply, ok, HS#hstate{roster = R1#{New => true}}}
     end;
 
-hub_handle(St = #hub_state{roster = Names}, {nick, OldNick, NewNick}) ->
-    case lists:member(NewNick, Names) of
-        true -> {reply, nick_taken, St};
-        false -> {reply, ok, St#hub_state{roster = [NewNick | lists:delete(OldNick, Names)]}}
-    end;
+%% Hub: stop all channels (used by stop/1)
+hub_handle(HS = #hstate{rooms = Rooms}, stop_all) ->
+    maps:map(fun(_Name, Pid) -> genserver:stop(Pid) end, Rooms),
+    {reply, ok, HS#hstate{rooms = #{}}};
 
-hub_handle(St = #hub_state{rooms = Rooms}, stop_all) ->
-    [genserver:stop(R) || R <- Rooms],
-    {reply, ok, St#hub_state{rooms = []}};
+%% Default
+hub_handle(HS, _Other) ->
+    {reply, idle, HS}.
 
-hub_handle(St, _) -> {reply, idle, St}.
-
-ensure_nick(St = #hub_state{roster = Names}, Nick) ->
-    case lists:member(Nick, Names) of
-        true -> St;
-        false -> St#hub_state{roster = [Nick | Names]}
+ensure_nick(HS = #hstate{roster = R}, Nick) ->
+    case maps:is_key(Nick, R) of
+        true  -> HS;
+        false -> HS#hstate{roster = R#{Nick => true}}
     end.
 
-catch_stop_all(ServerAtom) ->
-    try genserver:request(ServerAtom, stop_all) of
-        ok -> ok
+req_room(RoomPid, Payload) ->
+    try genserver:request(RoomPid, Payload) of
+        X -> X
     catch
         throw:timeout_error -> server_not_reached;
-        error:badarg -> server_not_reached
+        error:badarg        -> server_not_reached
     end.
 
-channel_join(Room, Pid) ->
-    try genserver:request(Room, {join, Pid}) of
-        ok -> ok;
-        user_already_joined -> user_already_joined
-    catch
-        throw:timeout_error -> server_not_reached;
-        error:badarg -> server_not_reached
-    end.
+start_room(RoomName, FirstPid) ->
+    Init = r_init(RoomName, [FirstPid]),
+    genserver:start(RoomName, Init, fun room_handle/2).
 
-start_room(Room, FirstPid) ->
-    genserver:start(Room, init_room_state(FirstPid, Room), fun room_handle/2).
-
-%% ===== Channel (room) =====
--record(room_state, {
-    members = [],  % list of PIDs in the room
-    id              % atom: registered name of the room
+%%========================
+%% Room (channel) process
+%%========================
+-record(rstate, {
+    name,           %% atom, registered channel name
+    members = []    %% [Pid] — we keep list; tests are tiny
 }).
 
-init_room_state(FirstPid, RoomId) ->
-    #room_state{members = [FirstPid], id = RoomId}.
+r_init(Name, InitialMembers) ->
+    #rstate{name = Name, members = lists:usort(InitialMembers)}.
 
-room_handle(St = #room_state{members = Pids}, {join, Pid}) ->
-    case lists:member(Pid, Pids) of
-        true -> {reply, user_already_joined, St};
-        false -> {reply, ok, St#room_state{members = [Pid | Pids]}}
+room_handle(RS = #rstate{members = Ms}, {join, Pid}) ->
+    case lists:member(Pid, Ms) of
+        true  -> {reply, user_already_joined, RS};
+        false -> {reply, ok, RS#rstate{members = [Pid | Ms]}}
     end;
 
-room_handle(St = #room_state{members = Pids}, {leave, Pid}) ->
-    case lists:member(Pid, Pids) of
-        true -> {reply, ok, St#room_state{members = lists:delete(Pid, Pids)}};
-        false -> {reply, user_not_joined, St}
+room_handle(RS = #rstate{members = Ms}, {leave, Pid}) ->
+    case lists:member(Pid, Ms) of
+        true  -> {reply, ok, RS#rstate{members = lists:delete(Pid, Ms)}};
+        false -> {reply, user_not_joined, RS}
     end;
 
-room_handle(St = #room_state{members = Pids, id = Name}, {message_send, From, Nick, Msg}) ->
-    case lists:member(From, Pids) of
-        true ->
-            spawn(fun() -> fanout(Name, Nick, Msg, Pids, From) end),
-            {reply, ok, St};
-        false -> {reply, user_not_joined, St}
+room_handle(RS = #rstate{name = Name, members = Ms}, {message_send, FromPid, Nick, Msg}) ->
+    case lists:member(FromPid, Ms) of
+        false -> {reply, user_not_joined, RS};
+        true  ->
+            %% fanout in a separate process (non-blocking)
+            spawn(fun() -> broadcast(Name, Nick, Msg, Ms, FromPid) end),
+            {reply, ok, RS}
     end;
 
-room_handle(St, _) -> {reply, idle, St}.
+room_handle(RS, _Other) ->
+    {reply, idle, RS}.
 
-fanout(Room, Nick, Message, Receivers, Sender) ->
-    Others = lists:delete(Sender, Receivers),
-    lists:foreach(fun(R) -> deliver(Room, Nick, Message, R) end, Others).
+broadcast(RoomName, Nick, Msg, Pids, Sender) ->
+    %% do not echo back to sender
+    lists:foreach(
+      fun(P) ->
+          case P =:= Sender of
+              true  -> ok;
+              false -> deliver(RoomName, Nick, Msg, P)
+          end
+      end, Pids).
 
-deliver(Room, Nick, Message, Receiver) ->
-    try genserver:request(Receiver, {message_receive, atom_to_list(Room), Nick, Message}) of
-        ok -> ok
-    catch
-        throw:timeout_error -> user_cannot_be_reached
-    end.
+deliver(RoomName, Nick, Msg, ClientPid) ->
+    %% ClientPid is the *client* process; it implements handle/2
+    %% GUI protocol requires string channel name on push:
+    ChannelStr = atom_to_list(RoomName),
+    _ = try genserver:request(ClientPid, {message_receive, ChannelStr, Nick, Msg})
+        catch throw:timeout_error -> user_cannot_be_reached end,
+    ok.
