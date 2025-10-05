@@ -1,12 +1,12 @@
 %%--------------------------------------------------------------------
-%% CCHAT server 
+%% CCHAT server (hub + rooms; wording adjusted)
 %%--------------------------------------------------------------------
 -module(server).
 -export([start/1, stop/1]).
 
 -record(hstate, {
-    rooms  = #{} ,   %% #{ChannelAtom => Pid}
-    roster = #{}     %% #{NickString => true}  (global uniqueness)
+    rooms  = #{},  %% #{ChannelAtom => Pid}
+    roster = #{}   %% #{NickString => true}  (global uniqueness)
 }).
 
 %%========================
@@ -16,7 +16,7 @@ start(ServerName) ->
     genserver:start(ServerName, #hstate{}, fun hub_handle/2).
 
 stop(ServerName) ->
-    %% best-effort graceful: ask hub to stop all rooms, then stop hub
+    %% Best-effort shutdown: ask hub to stop rooms, then stop hub
     _ = try genserver:request(ServerName, stop_all)
         catch _:_ -> server_not_reached
         end,
@@ -39,7 +39,7 @@ hub_handle(HS = #hstate{rooms = Rooms, roster = R}, {join, Room, ClientPid, Nick
             end
     end;
 
-%% Distinction: enforce global nick uniqueness
+%% Global nick uniqueness (distinction)
 hub_handle(HS = #hstate{roster = R}, {nick, Old, New}) ->
     case maps:is_key(New, R) of
         true  -> {reply, nick_taken, HS};
@@ -79,51 +79,11 @@ start_room(RoomName, FirstPid) ->
 %% Room (channel) process
 %%========================
 -record(rstate, {
-    name,           %% atom, registered channel name
-    members = []    %% [Pid] — we keep list; tests are tiny
+    name,            %% channel name (atom, registered)
+    members = []     %% [Pid]
 }).
 
 r_init(Name, InitialMembers) ->
     #rstate{name = Name, members = lists:usort(InitialMembers)}.
 
-room_handle(RS = #rstate{members = Ms}, {join, Pid}) ->
-    case lists:member(Pid, Ms) of
-        true  -> {reply, user_already_joined, RS};
-        false -> {reply, ok, RS#rstate{members = [Pid | Ms]}}
-    end;
-
-room_handle(RS = #rstate{members = Ms}, {leave, Pid}) ->
-    case lists:member(Pid, Ms) of
-        true  -> {reply, ok, RS#rstate{members = lists:delete(Pid, Ms)}};
-        false -> {reply, user_not_joined, RS}
-    end;
-
-room_handle(RS = #rstate{name = Name, members = Ms}, {message_send, FromPid, Nick, Msg}) ->
-    case lists:member(FromPid, Ms) of
-        false -> {reply, user_not_joined, RS};
-        true  ->
-            %% fanout in a separate process (non-blocking)
-            spawn(fun() -> broadcast(Name, Nick, Msg, Ms, FromPid) end),
-            {reply, ok, RS}
-    end;
-
-room_handle(RS, _Other) ->
-    {reply, idle, RS}.
-
-broadcast(RoomName, Nick, Msg, Pids, Sender) ->
-    %% do not echo back to sender
-    lists:foreach(
-      fun(P) ->
-          case P =:= Sender of
-              true  -> ok;
-              false -> deliver(RoomName, Nick, Msg, P)
-          end
-      end, Pids).
-
-deliver(RoomName, Nick, Msg, ClientPid) ->
-    %% ClientPid is the *client* process; it implements handle/2
-    %% GUI protocol requires string channel name on push:
-    ChannelStr = atom_to_list(RoomName),
-    _ = try genserver:request(ClientPid, {message_receive, ChannelStr, Nick, Msg})
-        catch throw:timeout_error -> user_cannot_be_reached end,
-    ok.
+room_hand_
